@@ -11,12 +11,14 @@
 			thousands : ',',
 			allowZero : false
 		}, settings);
+
 		return this.each(function() {
 					var input = $(this);
 					if (input.data('money-init')) return this;
 					
 					var execKeyUp = false;
 					var execKeyPress = false;
+					var execChange = false;
 					function keypressEvent(e) {
 						if (!execKeyPress) return;
 						execKeyPress = false;
@@ -50,25 +52,35 @@
 						keypressEvent(e);
 					}
 					function changeEvent(e) {
-						if (execKeyUp || execKeyPress) return;
+						if (execKeyUp || execKeyPress || execChange) return;
 						execKeyUp = true;
+						
+						//IE seems to trigger propertychange event after setting input.val(), so disable it till we change it
+						execChange = true;
 						keyupEvent(e);
+						execChange = false;
 					}
 					function keyupEvent(e) {
 						if (!execKeyUp) return;
 						execKeyUp = false;
 						execKeyPress = false;
-						input.val(maskValue(input.val()));
+						
+						var value = maskValue(input.val());
+						input.val(value);
 					}
 					function maskValue(sum) {
 						var x = sum.split(settings.decimal);
 						var unit = x.shift().replace(/[^0-9]+/ig, "");
 						var precision = x.join('').replace(/[^0-9]+/ig, "");
 						precision = precision.substr(0, settings.precision);
-						var rgx = /(\d+)(\d{3})/;
-						while (rgx.test(unit)) {
-							unit = unit.replace(rgx, '$1' + settings.thousands + '$2');
+						
+						if (settings.thousands.length){
+							var rgx = /(\d+)(\d{3})/;
+							while (rgx.test(unit)) {
+								unit = unit.replace(rgx, '$1' + settings.thousands + '$2');
+							}
 						}
+						
 						return unit + ((unit.length && (settings.precision > 0) && (precision.length || x.length)) ? settings.decimal + precision : '');
 					}
 					
@@ -78,7 +90,7 @@
 					input.bind('keydown.money', keydownEvent);
 					input.bind('keyup.money', keyupEvent);
 					input.bind('input.money propertychange.money', changeEvent).trigger('input.money');
-					
+
 					return this;
 				});
 	}
